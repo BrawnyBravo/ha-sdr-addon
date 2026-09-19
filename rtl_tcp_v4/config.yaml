@@ -1,9 +1,11 @@
-name: RTL-TCP (RTL-SDR Blog driver)
-version: "1.0.0"
+name: RTL-SDR Radio (RTL-SDR Blog driver)
+version: "2.0.0"
 slug: rtl_tcp_v4
 description: >-
-  rtl_tcp server built from the RTL-SDR Blog driver, so RTL-SDR Blog V3 and V4
-  dongles actually tune. Point rtlamr2mqtt, rtl_433 or any SDR client at it.
+  One USB RTL-SDR, built with the RTL-SDR Blog driver so V3 and V4 dongles
+  actually tune. Serve it to the whole house, decode 433/868/915 MHz sensors,
+  meters and tyre sensors to MQTT, track aircraft, or sweep a band to see what
+  is out there.
 url: https://github.com/BrawnyBravo/ha-addons/tree/main/rtl_tcp_v4
 arch:
   - aarch64
@@ -14,24 +16,55 @@ startup: services
 boot: auto
 usb: true
 udev: true
-host_network: false
+hassio_api: true
+services:
+  - mqtt:want
+map:
+  - share:rw
 ports:
   1234/tcp: 1234
 ports_description:
-  1234/tcp: rtl_tcp server (raw IQ stream)
+  1234/tcp: rtl_tcp raw IQ stream (mode rtl_tcp)
 options:
+  mode: rtl_tcp
   device_index: 0
-  bind_address: 0.0.0.0
-  sample_rate: 2048000
-  frequency: 912600000
   gain: 0
   ppm_error: 0
-  max_buffers: 500
+  bind_address: 0.0.0.0
+  tcp_sample_rate: 2048000
+  tcp_frequency: 912600000
+  tcp_max_buffers: 500
+  decoder_frequencies:
+    - 912.6M
+  decoder_protocols: []
+  decoder_extra_args: ""
+  mqtt_topic_prefix: rtl_433
+  mqtt_ha_discovery: true
+  survey_from: 400M
+  survey_to: 1000M
+  survey_bin_size: 100k
+  survey_minutes: 10
 schema:
+  mode: list(rtl_tcp|rtl_433|adsb|survey)
   device_index: int(0,8)
-  bind_address: str
-  sample_rate: int(225001,3200000)
-  frequency: int(24000000,1766000000)
   gain: float(0,50)
   ppm_error: int(-200,200)
-  max_buffers: int(1,2000)
+  bind_address: str
+  tcp_sample_rate: int(225001,3200000)
+  tcp_frequency: int(24000000,1766000000)
+  tcp_max_buffers: int(1,2000)
+  decoder_frequencies:
+    - str
+  decoder_protocols:
+    - str
+  decoder_extra_args: str
+  mqtt_host: str?
+  mqtt_port: port?
+  mqtt_user: str?
+  mqtt_password: password?
+  mqtt_topic_prefix: str
+  mqtt_ha_discovery: bool
+  survey_from: str
+  survey_to: str
+  survey_bin_size: str
+  survey_minutes: int(1,1440)
