@@ -9,12 +9,15 @@ mkdir -p "${OUT}"
 
 log() { echo "[rtl-sdr] $*"; }
 
+# Note the null test rather than jq's "//". A stored "false" is a real answer,
+# and "//" would quietly swap it for the default - which would make the
+# discovery switch impossible to turn off.
 get() {
-    jq -r --arg f "$2" ".${1} // \$f" "${OPTS}" 2>/dev/null || echo "$2"
+    jq -r --arg k "$1" --arg f "$2"         'if (.[$k] == null) then $f else (.[$k] | tostring) end'         "${OPTS}" 2>/dev/null || echo "$2"
 }
 
 get_list() {
-    jq -r ".${1} // [] | .[]" "${OPTS}" 2>/dev/null || true
+    jq -r --arg k "$1" '(.[$k] // []) | .[]' "${OPTS}" 2>/dev/null || true
 }
 
 MODE=$(get mode rtl_tcp)
@@ -100,7 +103,11 @@ rtl_433)
 
     if [ -n "${MQTT_HOST}" ]; then
         SINK="mqtt://${MQTT_HOST}:${MQTT_PORT},retain=0,devices=${PREFIX}[/model][/id]"
-        [ -n "${MQTT_USER}" ] && SINK="${SINK},user=${MQTT_USER},pass=${MQTT_PASS}"
+        # Must be a full if: under "set -e" a bare "test && assign" would take
+        # the whole add-on down the moment the broker is anonymous.
+        if [ -n "${MQTT_USER}" ]; then
+            SINK="${SINK},user=${MQTT_USER},pass=${MQTT_PASS}"
+        fi
         set -- "$@" -F "${SINK}"
         log "publishing decodes to MQTT under ${PREFIX}/"
 
