@@ -1,13 +1,13 @@
-# BrawnyBravo Home Assistant Apps
+# BrawnyBravo SDR for Home Assistant
 
-A small add-on repository for Home Assistant.
+A Home Assistant add-on that turns an RTL-SDR dongle into a network radio source.
 
 ## Add it to Home Assistant
 
 Settings → Apps → three-dot menu → Repositories → add:
 
 ```
-https://github.com/BrawnyBravo/ha-addons
+https://github.com/BrawnyBravo/ha-sdr-addon
 ```
 
 ## Add-ons

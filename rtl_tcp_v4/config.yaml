@@ -6,7 +6,7 @@ description: >-
   actually tune. Serve it to the whole house, decode 433/868/915 MHz sensors,
   meters and tyre sensors to MQTT, track aircraft, or sweep a band to see what
   is out there.
-url: https://github.com/BrawnyBravo/ha-addons/tree/main/rtl_tcp_v4
+url: https://github.com/BrawnyBravo/ha-sdr-addon/tree/main/rtl_tcp_v4
 arch:
   - aarch64
   - amd64

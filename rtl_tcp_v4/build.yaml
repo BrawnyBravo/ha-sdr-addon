@@ -4,4 +4,4 @@ build_from:
   armv7: alpine:3.20
 labels:
   org.opencontainers.image.title: RTL-TCP (RTL-SDR Blog driver)
-  org.opencontainers.image.source: https://github.com/BrawnyBravo/ha-addons
+  org.opencontainers.image.source: https://github.com/BrawnyBravo/ha-sdr-addon
