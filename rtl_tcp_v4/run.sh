@@ -126,13 +126,33 @@ rtl_433)
             # must not take the whole add-on down with it - decoding still works,
             # the entities just need adding by hand.
             log "starting the Home Assistant discovery bridge"
+            # Left unset, the bridge advertises every device the dongle can
+            # hear - which on 915 MHz means the neighbours' utility meters,
+            # not just ours - easily hundreds of stray entities belonging to
+            # other households. mqtt_discovery_ids restricts it to named meters.
+            # Numeric ids only: anything else is logged and dropped rather
+            # than handed to the shell, since this comes from user options.
+            DISC_IDS=""
+            for mid in $(get_list mqtt_discovery_ids); do
+                case "${mid}" in
+                    ''|*[!0-9]*) log "ignoring non-numeric discovery id: ${mid}" ;;
+                    *) DISC_IDS="${DISC_IDS} ${mid}" ;;
+                esac
+            done
+            if [ -n "${DISC_IDS}" ]; then
+                log "discovery limited to meter ids:${DISC_IDS}"
+            else
+                log "discovery covers every device heard - set mqtt_discovery_ids to limit it"
+            fi
             # The bridge takes the broker on the command line; only the
             # credentials come from the environment. Handing it the host as an
             # environment variable leaves it on its 127.0.0.1 default, where it
             # connects to nothing and silently advertises no sensors at all.
+            # shellcheck disable=SC2086
             python3 -u /usr/local/bin/rtl_433_mqtt_hass.py \
                 -H "${MQTT_HOST}" -p "${MQTT_PORT}" \
-                -R "${PREFIX}/radio/events" 2>&1 \
+                -R "${PREFIX}/radio/events" \
+                ${DISC_IDS:+-I ${DISC_IDS}} 2>&1 \
                 | python3 /usr/local/bin/diag.py discovery &
         fi
     else

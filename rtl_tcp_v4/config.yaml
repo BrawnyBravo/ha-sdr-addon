@@ -1,5 +1,5 @@
 name: RTL-SDR Radio (RTL-SDR Blog driver)
-version: "2.2.0"
+version: "2.3.0"
 slug: rtl_tcp_v4
 description: >-
   One USB RTL-SDR, built with the RTL-SDR Blog driver so V3 and V4 dongles
@@ -40,6 +40,7 @@ options:
   decoder_extra_args: ""
   mqtt_topic_prefix: rtl_433
   mqtt_ha_discovery: true
+  mqtt_discovery_ids: []
   survey_from: 400M
   survey_to: 1000M
   survey_bin_size: 100k
@@ -64,6 +65,8 @@ schema:
   mqtt_password: password?
   mqtt_topic_prefix: str
   mqtt_ha_discovery: bool
+  mqtt_discovery_ids:
+    - str
   survey_from: str
   survey_to: str
   survey_bin_size: str

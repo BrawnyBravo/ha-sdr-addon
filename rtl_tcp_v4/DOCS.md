@@ -52,6 +52,28 @@ separate MQTT account is needed — set `mqtt_host` only to override it.
 
 With `mqtt_ha_discovery` on, entities create themselves.
 
+**Limit discovery to your own meters.** Left unset, the bridge creates an entity
+for every device it hears — and on 915 MHz in a normal street that means your
+neighbours' utility meters as well as yours. It is not a fault, just the default:
+the radio cannot tell whose meter is whose. In one house it produced 330 entities
+belonging to 31 other households.
+
+Put your own meter ids in `mqtt_discovery_ids` and nothing else gets an entity:
+
+```yaml
+mqtt_discovery_ids:
+  - "12345678"
+```
+
+Ids are the numbers in the decoded messages — watch the add-on log with discovery
+on, or read the id off an entity that already appeared. Non-numeric entries are
+logged and ignored. Leave the list empty to discover everything, which is the
+previous behaviour and still the default.
+
+Turning this on later does not remove entities already created; delete those in
+**Settings → Devices & Services → Entities**. It does stop new ones appearing.
+
+
 Set `decoder_frequencies` to the bands you care about:
 
 | Band | Typically |
@@ -95,6 +117,7 @@ once, then idles.
 | `mqtt_host` … `mqtt_password` | *(unset)* | rtl_433 | Only to override Home Assistant's broker |
 | `mqtt_topic_prefix` | `rtl_433` | rtl_433 | Topic root |
 | `mqtt_ha_discovery` | `true` | rtl_433 | Create entities automatically |
+| `mqtt_discovery_ids` | *(empty)* | rtl_433 | Only create entities for these device ids; empty means all |
 | `survey_from` / `survey_to` | `400M` / `1000M` | survey | Sweep range |
 | `survey_bin_size` | `100k` | survey | Resolution |
 | `survey_minutes` | `10` | survey | How long to sweep |
