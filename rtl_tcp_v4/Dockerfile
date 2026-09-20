@@ -9,6 +9,9 @@ FROM ${BUILD_FROM}
 #
 # Everything here is built against that one driver, so every mode benefits.
 
+# The mapping patch below is applied to upstream's bridge at build time.
+COPY patch_mqtt_hass.py /usr/local/bin/patch_mqtt_hass.py
+
 ARG RTLSDR_REF=master
 ARG RTL433_REF=master
 
@@ -41,6 +44,14 @@ RUN apk add --no-cache \
     \
     # The Home Assistant MQTT discovery bridge ships in the rtl_433 source tree.
     && install -m 0755 /tmp/rtl_433/examples/rtl_433_mqtt_hass.py \
+        /usr/local/bin/rtl_433_mqtt_hass.py \
+    \
+    # That bridge drops the one field a utility meter exists to report: it
+    # matches keys case-sensitively and has no mapping for SCM+'s
+    # "Consumption" or IDM's "LastConsumption*", so meters get rssi/snr/noise
+    # and no reading. The patch is additive and fails the build if the
+    # result does not parse. See patch_mqtt_hass.py.
+    && python3 /usr/local/bin/patch_mqtt_hass.py \
         /usr/local/bin/rtl_433_mqtt_hass.py \
     \
     && rm -rf /tmp/rtl-sdr-blog /tmp/rtl_433 \

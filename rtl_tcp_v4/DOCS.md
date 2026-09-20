@@ -117,6 +117,38 @@ Bands this antenna genuinely cannot reach — weather radio, emergency services,
 ham repeaters, weather satellites — all sit near 140–170 MHz and need a much
 longer element. They are out of scope here on purpose.
 
+## Utility meter readings, and a fix this add-on carries
+
+Upstream's Home Assistant MQTT discovery bridge (`rtl_433_mqtt_hass.py`) drops the
+one field a utility meter exists to report. It matches message keys exactly and
+case-sensitively, and its mapping table has a lowercase `consumption` entry
+labelled "SCMplus Consumption Value" -- but SCM+ emits `Consumption` with a
+capital C. That entry can therefore never match an SCM+ message. IDM and NETIDM
+lose their readings the same way: `LastConsumption`, `LastConsumptionCount` and
+`LastConsumptionNet` are not in the table at all.
+
+The symptom is confusing, because nothing looks broken. The decode is CRC-valid,
+the reading is sitting in the MQTT payload, the bridge logs no error -- and the
+only entities that ever appear for the meter are `rssi`, `snr` and `noise`. The
+reading has to be hand-built as a template sensor to be usable.
+
+On one receiver here the split is stark. ERT-SCM emits `consumption_data`, which
+*is* in the table, and all 22 ERT-SCM meters in range produced a reading entity.
+The 56 SCM+, IDM and NETIDM meters in range produced none between them.
+
+This add-on patches the bridge at build time (`patch_mqtt_hass.py`). The patch is
+strictly **additive**: it adds `Consumption`, `LastConsumption`,
+`LastConsumptionCount`, `LastConsumptionNet` and `MeterType`, and changes no
+existing entry. That matters, because lowercase `consumption` is not dead code --
+across all of upstream's decoders exactly one emits it (`neptune_r900.c`), so it
+quietly serves Neptune R900 water meters under an SCM+ label. Nobody using an
+R900 loses an entity. The build fails rather than shipping a bridge that does not
+parse, and re-running the patch is a no-op.
+
+Applies to `rtl_433` mode with MQTT discovery enabled. If you already hand-built
+a template sensor for your meter, it keeps working; the discovered entity appears
+alongside it, so pick one and remove the other to avoid double-counting.
+
 ## Practical notes
 
 - **Use a USB 2 port.** USB 3 controllers emit broadband noise right across the
