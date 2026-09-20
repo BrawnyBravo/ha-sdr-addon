@@ -1,5 +1,5 @@
 name: RTL-SDR Radio (RTL-SDR Blog driver)
-version: "2.0.1"
+version: "2.1.0"
 slug: rtl_tcp_v4
 description: >-
   One USB RTL-SDR, built with the RTL-SDR Blog driver so V3 and V4 dongles

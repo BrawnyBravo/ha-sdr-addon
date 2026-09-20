@@ -50,7 +50,8 @@ RUN apk add --no-cache \
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+COPY diag.py /usr/local/bin/diag.py
+RUN chmod a+x /run.sh /usr/local/bin/diag.py
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/run.sh"]

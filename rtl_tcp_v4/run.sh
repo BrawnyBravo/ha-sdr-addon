@@ -26,18 +26,6 @@ GAIN=$(get gain 0)
 PPM=$(get ppm_error 0)
 BIND=$(get bind_address 0.0.0.0)
 
-# ---------------------------------------------------------------- driver check
-# On a V4 this prints "RTL-SDR Blog V4 ... Detected". If it instead reports a
-# plain R820T with "PLL not locked", the wrong driver got built and nothing
-# downstream will ever decode. Surfacing it here saves hours of blaming
-# antennas.
-log "driver check:"
-rtl_test -t 2>&1 | head -n 6 | sed 's/^/[rtl-sdr]   /' || true
-
-if rtl_test -t 2>&1 | grep -q "PLL not locked"; then
-    log "WARNING: tuner did not lock. If this is a V3/V4 dongle the driver is wrong."
-fi
-
 # ------------------------------------------------------------------ mqtt setup
 # Home Assistant hands add-ons the broker details, so no separate account is
 # needed. Explicit options win if they are set.
@@ -69,6 +57,22 @@ resolve_mqtt() {
     [ -n "${MQTT_PORT}" ] || MQTT_PORT=1883
 }
 
+# ---------------------------------------------------------------- driver check
+# On a V4 this prints "RTL-SDR Blog V4 Detected", or "... V4 Lite Detected" on
+# the Lite. If it instead reports a plain R820T with "PLL not locked", the
+# wrong driver got built and nothing downstream will ever decode. Both the
+# check and the discovery bridge fail silently, and add-on logs are out of
+# reach of anything driving this over the Supervisor WebSocket, so both are
+# mirrored to MQTT under <prefix>/radio/diag.
+resolve_mqtt
+MQTT_USERNAME="${MQTT_USER}"
+MQTT_PASSWORD="${MQTT_PASS}"
+DIAG_TOPIC="$(get mqtt_topic_prefix rtl_433)/radio/diag"
+export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD DIAG_TOPIC
+
+log "driver check:"
+rtl_test -t 2>&1 | head -n 8 | python3 /usr/local/bin/diag.py driver || true
+
 case "${MODE}" in
 
 # --------------------------------------------------------------------- rtl_tcp
@@ -87,7 +91,6 @@ rtl_tcp)
 # Utility meters, cheap weather and temperature sensors, tyre pressure sensors,
 # door sensors - several hundred device types, straight into MQTT.
 rtl_433)
-    resolve_mqtt
     PREFIX=$(get mqtt_topic_prefix rtl_433)
     DISCOVERY=$(get mqtt_ha_discovery true)
     EXTRA=$(get decoder_extra_args "")
@@ -127,11 +130,10 @@ rtl_433)
             # credentials come from the environment. Handing it the host as an
             # environment variable leaves it on its 127.0.0.1 default, where it
             # connects to nothing and silently advertises no sensors at all.
-            MQTT_USERNAME="${MQTT_USER}" MQTT_PASSWORD="${MQTT_PASS}" \
-            python3 /usr/local/bin/rtl_433_mqtt_hass.py \
+            python3 -u /usr/local/bin/rtl_433_mqtt_hass.py \
                 -H "${MQTT_HOST}" -p "${MQTT_PORT}" \
                 -R "${PREFIX}/radio/events" 2>&1 \
-                | sed 's/^/[rtl-sdr] discovery: /' &
+                | python3 /usr/local/bin/diag.py discovery &
         fi
     else
         log "no broker available - decodes will only appear in this log"
