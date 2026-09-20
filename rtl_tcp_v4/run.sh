@@ -102,7 +102,14 @@ rtl_433)
     done
 
     if [ -n "${MQTT_HOST}" ]; then
-        SINK="mqtt://${MQTT_HOST}:${MQTT_PORT},retain=0,devices=${PREFIX}[/model][/id]"
+        # Two streams: one JSON message per decode for the discovery bridge, and
+        # the split-out per-field topics Home Assistant actually reads. The
+        # bridge builds the second from the first by taking the first two
+        # segments of the event topic, so the "/radio/" level has to be here or
+        # the sensors it advertises point at topics nothing ever publishes.
+        SINK="mqtt://${MQTT_HOST}:${MQTT_PORT},retain=0"
+        SINK="${SINK},events=${PREFIX}/radio/events"
+        SINK="${SINK},devices=${PREFIX}/radio/devices[/type][/model][/subtype][/channel][/id]"
         # Must be a full if: under "set -e" a bare "test && assign" would take
         # the whole add-on down the moment the broker is anonymous.
         if [ -n "${MQTT_USER}" ]; then
@@ -116,10 +123,14 @@ rtl_433)
             # must not take the whole add-on down with it - decoding still works,
             # the entities just need adding by hand.
             log "starting the Home Assistant discovery bridge"
-            MQTT_HOST="${MQTT_HOST}" MQTT_PORT="${MQTT_PORT}" \
+            # The bridge takes the broker on the command line; only the
+            # credentials come from the environment. Handing it the host as an
+            # environment variable leaves it on its 127.0.0.1 default, where it
+            # connects to nothing and silently advertises no sensors at all.
             MQTT_USERNAME="${MQTT_USER}" MQTT_PASSWORD="${MQTT_PASS}" \
-            MQTT_TOPIC="${PREFIX}/#" \
-            python3 /usr/local/bin/rtl_433_mqtt_hass.py 2>&1 \
+            python3 /usr/local/bin/rtl_433_mqtt_hass.py \
+                -H "${MQTT_HOST}" -p "${MQTT_PORT}" \
+                -R "${PREFIX}/radio/events" 2>&1 \
                 | sed 's/^/[rtl-sdr] discovery: /' &
         fi
     else
