@@ -12,8 +12,12 @@ FROM ${BUILD_FROM}
 # The mapping patch below is applied to upstream's bridge at build time.
 COPY patch_mqtt_hass.py /usr/local/bin/patch_mqtt_hass.py
 
-ARG RTLSDR_REF=master
-ARG RTL433_REF=master
+# Upstream sources are pinned to exact commits so a rebuild always produces the
+# same driver and decoder. Bump these on purpose (and the add-on version with them).
+# rtl-sdr-blog V1.4.0 (2026-08-10).
+ARG RTLSDR_REF=aed0ea19f3a273370a13c9009b96313c75d54c7b
+# rtl_433 master as of 2026-10-27.
+ARG RTL433_REF=f35183aaf1d2d905d422fd70bcae4eb7349d6186
 
 RUN apk add --no-cache \
         libusb openssl jq curl tini python3 py3-paho-mqtt \
@@ -21,8 +25,10 @@ RUN apk add --no-cache \
         git cmake make g++ libusb-dev openssl-dev pkgconfig \
     \
     # --- RTL-SDR Blog driver: librtlsdr, rtl_tcp, rtl_adsb, rtl_power, rtl_test
-    && git clone --depth 1 --branch "${RTLSDR_REF}" \
-        https://github.com/rtlsdrblog/rtl-sdr-blog /tmp/rtl-sdr-blog \
+    && git init -q /tmp/rtl-sdr-blog \
+    && git -C /tmp/rtl-sdr-blog fetch -q --depth 1 \
+        https://github.com/rtlsdrblog/rtl-sdr-blog "${RTLSDR_REF}" \
+    && git -C /tmp/rtl-sdr-blog checkout -q FETCH_HEAD \
     && cmake -S /tmp/rtl-sdr-blog -B /tmp/rtl-sdr-blog/build \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -32,8 +38,10 @@ RUN apk add --no-cache \
     && make -C /tmp/rtl-sdr-blog/build install \
     \
     # --- rtl_433: sensors, utility meters, tyre pressure sensors, and more
-    && git clone --depth 1 --branch "${RTL433_REF}" \
-        https://github.com/merbanan/rtl_433 /tmp/rtl_433 \
+    && git init -q /tmp/rtl_433 \
+    && git -C /tmp/rtl_433 fetch -q --depth 1 \
+        https://github.com/merbanan/rtl_433 "${RTL433_REF}" \
+    && git -C /tmp/rtl_433 checkout -q FETCH_HEAD \
     && cmake -S /tmp/rtl_433 -B /tmp/rtl_433/build \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -56,7 +64,7 @@ RUN apk add --no-cache \
     \
     && rm -rf /tmp/rtl-sdr-blog /tmp/rtl_433 \
     && apk del .build-deps \
-    && ldconfig /usr/local/lib 2>/dev/null || true
+    && { ldconfig /usr/local/lib 2>/dev/null || true; }
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
