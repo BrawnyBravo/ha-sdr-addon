@@ -52,8 +52,10 @@ jobs:
         run: |
           # SC2015: the build line's `&& ... || true` is known; the smoke check in
           # the build job catches a failed compile instead.
+          # DL3006: `FROM $BUILD_FROM` is how Home Assistant add-ons pick their base
+          # image per architecture (set in build.yaml).
           docker run --rm -i hadolint/hadolint:v2.12.0@sha256:30a8fd2e785ab6176eed53f74769e04f125afb2f74a6c52aef7d463583b6d45e hadolint \
-            --ignore DL3018 --ignore DL3059 --ignore DL4006 --ignore SC2015 - \
+            --ignore DL3018 --ignore DL3059 --ignore DL4006 --ignore DL3006 --ignore SC2015 - \
             < rtl_tcp_v4/Dockerfile
 
   build:
