@@ -1,0 +1,85 @@
+name: Build check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Parse YAML files
+        run: |
+          python3 - <<'PY'
+          import sys, yaml
+          bad = 0
+          for path in ("repository.yaml", "rtl_tcp_v4/config.yaml", "rtl_tcp_v4/build.yaml"):
+              try:
+                  with open(path) as f:
+                      yaml.safe_load(f)
+                  print("ok", path)
+              except Exception as exc:
+                  print("FAIL", path, exc)
+                  bad = 1
+          sys.exit(bad)
+          PY
+
+      - name: Check shell syntax
+        run: sh -n rtl_tcp_v4/run.sh
+
+      - name: Check Python syntax
+        run: python3 -m py_compile rtl_tcp_v4/diag.py rtl_tcp_v4/patch_mqtt_hass.py
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck --severity=warning rtl_tcp_v4/run.sh
+
+      - name: Hadolint
+        run: |
+          docker run --rm -i hadolint/hadolint:v2.12.0 hadolint \
+            --ignore DL3018 --ignore DL3059 --ignore DL4006 - \
+            < rtl_tcp_v4/Dockerfile
+
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: aarch64
+            platform: linux/arm64
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        if: matrix.arch != 'amd64'
+
+      - name: Read base image from build.yaml
+        id: base
+        run: |
+          echo "image=$(python3 -c "import yaml; print(yaml.safe_load(open('rtl_tcp_v4/build.yaml'))['build_from']['${{ matrix.arch }}'])")" >> "$GITHUB_OUTPUT"
+
+      # Build only; nothing is pushed anywhere.
+      - name: Build image
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg BUILD_FROM=${{ steps.base.outputs.image }} \
+            --tag ha-sdr-addon:ci-${{ matrix.arch }} \
+            rtl_tcp_v4
