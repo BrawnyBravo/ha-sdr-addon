@@ -50,8 +50,10 @@ jobs:
 
       - name: Hadolint
         run: |
-          docker run --rm -i hadolint/hadolint:v2.12.0 hadolint \
-            --ignore DL3018 --ignore DL3059 --ignore DL4006 - \
+          # SC2015: the build line's `&& ... || true` is known; the smoke check in
+          # the build job catches a failed compile instead.
+          docker run --rm -i hadolint/hadolint:v2.12.0@sha256:30a8fd2e785ab6176eed53f74769e04f125afb2f74a6c52aef7d463583b6d45e hadolint \
+            --ignore DL3018 --ignore DL3059 --ignore DL4006 --ignore SC2015 - \
             < rtl_tcp_v4/Dockerfile
 
   build:
@@ -90,10 +92,18 @@ jobs:
             --platform ${{ matrix.platform }} \
             --build-arg BUILD_FROM=${{ steps.base.outputs.image }} \
             --tag ha-sdr-addon:ci-${{ matrix.arch }} \
+            --load \
             rtl_tcp_v4
 
       # The Dockerfile's build RUN ends in `|| true`, so a failed compile still
       # yields an image. Check the tools are really there.
       - name: Check the image contains the tools
         run: |
-          docker run --rm --platform ${{ matrix.platform }} --entrypoint sh             ha-sdr-addon:ci-${{ matrix.arch }} -c             'set -e; for b in rtl_tcp rtl_433 rtl_test rtl_power rtl_adsb rtl_433_mqtt_hass.py diag.py; do command -v "$b"; done; python3 -m py_compile /usr/local/bin/rtl_433_mqtt_hass.py'
+          docker run --rm --platform ${{ matrix.platform }} --entrypoint sh \
+            ha-sdr-addon:ci-${{ matrix.arch }} -c '
+              set -e
+              for b in rtl_tcp rtl_433 rtl_test rtl_power rtl_adsb rtl_433_mqtt_hass.py diag.py; do
+                command -v "$b"
+              done
+              python3 -m py_compile /usr/local/bin/rtl_433_mqtt_hass.py
+            '
