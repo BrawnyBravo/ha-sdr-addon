@@ -17,6 +17,9 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
+
       - name: Parse YAML files
         run: |
           python3 - <<'PY'
@@ -62,6 +65,8 @@ jobs:
             platform: linux/amd64
           - arch: aarch64
             platform: linux/arm64
+          - arch: armv7
+            platform: linux/arm/v7
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,6 +74,9 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         if: matrix.arch != 'amd64'
+
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
 
       - name: Read base image from build.yaml
         id: base
@@ -83,3 +91,9 @@ jobs:
             --build-arg BUILD_FROM=${{ steps.base.outputs.image }} \
             --tag ha-sdr-addon:ci-${{ matrix.arch }} \
             rtl_tcp_v4
+
+      # The Dockerfile's build RUN ends in `|| true`, so a failed compile still
+      # yields an image. Check the tools are really there.
+      - name: Check the image contains the tools
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} --entrypoint sh             ha-sdr-addon:ci-${{ matrix.arch }} -c             'set -e; for b in rtl_tcp rtl_433 rtl_test rtl_power rtl_adsb rtl_433_mqtt_hass.py diag.py; do command -v "$b"; done; python3 -m py_compile /usr/local/bin/rtl_433_mqtt_hass.py'
